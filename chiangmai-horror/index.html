@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!--HEAD-START-->
+<title>Lucia in Chiang Mai</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chonburi&family=IBM+Plex+Mono:wght@400;500;600&family=Silkscreen:wght@400;700&display=swap">
+<style>
+/* Layout: one full-bleed game view; HUD pinned to the four corners; menu card docked left so the lane stays visible. */
+:root {
+  --bg: #0a0810;
+  --ink: #e9e4d6;
+  --ink-dim: #a39e90;
+  --panel: rgba(7, 8, 11, 0.78);
+  --line: #cfcabb;
+  --health: #63d04a;
+  --caution: #e0b83a;
+  --danger: #d0402e;
+  --lantern: #ff9a4a;
+  --font-hud: "Silkscreen", "Lucida Console", "Courier New", monospace;
+  --font-body: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --font-thai: "Chonburi", "Kanit", "Noto Sans Thai", "Leelawadee UI", "Thonburi", Tahoma, sans-serif;
+  --u: clamp(5px, 0.92vh, 11px);
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 14px;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+#game { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--bg); }
+#view {
+  position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+  image-rendering: pixelated; image-rendering: crisp-edges; image-rendering: pixelated;
+  outline: none;
+}
+#grain, #vignette, #hurt, #scan { position: absolute; inset: 0; pointer-events: none; }
+#grain {
+  inset: -96px; background-size: 288px 288px; image-rendering: pixelated; opacity: 0.55; mix-blend-mode: overlay;
+  animation: grain 0.5s steps(1) infinite;
+}
+@keyframes grain {
+  0% { transform: translate(0, 0); } 17% { transform: translate(-37px, 22px); } 33% { transform: translate(51px, -64px); }
+  50% { transform: translate(-83px, -11px); } 67% { transform: translate(19px, 71px); } 83% { transform: translate(-58px, 40px); }
+}
+#scan { background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0) 0 2px, rgba(0, 0, 0, 0.1) 2px 3px); }
+#vignette { background: radial-gradient(ellipse at 50% 46%, rgba(0, 0, 0, 0) 52%, rgba(4, 2, 8, 0.62) 100%); }
+#hurt { background: radial-gradient(ellipse at 50% 50%, rgba(150, 10, 6, 0) 38%, rgba(150, 10, 6, 0.85) 100%); opacity: 0; }
+
+/* ---- HUD ------------------------------------------------------------ */
+#hud { position: absolute; inset: 0; pointer-events: none; font-family: var(--font-hud); color: var(--ink); text-shadow: 2px 2px 0 #000; }
+.hud-box { background: var(--panel); border: 2px solid var(--line); box-shadow: 0 0 0 2px #000; }
+#hud-status { position: absolute; left: calc(var(--u) * 3); top: calc(var(--u) * 2.4); width: min(30vw, calc(var(--u) * 44)); min-width: 150px; }
+#hud-status .name { font-size: calc(var(--u) * 3.2); letter-spacing: 0.14em; line-height: 1; margin-bottom: calc(var(--u) * 0.7); }
+.bar { position: relative; height: calc(var(--u) * 1.9); background: rgba(6, 7, 9, 0.85); border: 2px solid var(--line); box-shadow: 0 0 0 2px #000; }
+.bar i { position: absolute; inset: 2px; transform-origin: left center; background: var(--health); display: block; }
+.bar[data-tone="caution"] i { background: var(--caution); }
+.bar[data-tone="danger"] i { background: var(--danger); }
+.bar.stamina { height: calc(var(--u) * 0.9); margin-top: calc(var(--u) * 0.6); width: 62%; border-width: 1px; transition: opacity 0.4s; }
+.bar.stamina i { inset: 1px; background: var(--ink-dim); }
+#objective { margin-top: calc(var(--u) * 1.1); font-family: var(--font-body); font-size: max(11px, calc(var(--u) * 1.7)); color: var(--ink); text-shadow: 1px 1px 0 #000; letter-spacing: 0.02em; }
+#objective::before { content: "> "; color: var(--caution); }
+#objective:empty::before { content: ""; }
+
+#minimap {
+  position: absolute; right: calc(var(--u) * 3); top: calc(var(--u) * 2.4);
+  width: calc(var(--u) * 21); height: calc(var(--u) * 21); min-width: 96px; min-height: 96px;
+  image-rendering: pixelated; opacity: 0.92;
+}
+
+#reticle { position: absolute; left: 50%; top: 50%; width: 0; height: 0; --gap: 6px; opacity: 0; transition: opacity 0.12s; }
+#reticle i { position: absolute; background: #f4f0e4; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.75); display: block; }
+#reticle .t, #reticle .b { width: 2px; height: 7px; left: -1px; }
+#reticle .l, #reticle .r { width: 7px; height: 2px; top: -1px; }
+#reticle .t { top: calc(-7px - var(--gap)); }
+#reticle .b { top: var(--gap); }
+#reticle .l { left: calc(-7px - var(--gap)); }
+#reticle .r { left: var(--gap); }
+#reticle .dot { width: 2px; height: 2px; left: -1px; top: -1px; }
+#reticle[data-steady="1"] i { background: var(--health); }
+
+#hud-right { position: absolute; right: calc(var(--u) * 3); bottom: calc(var(--u) * 2.6); display: flex; flex-direction: column; gap: calc(var(--u) * 1); align-items: stretch; width: calc(var(--u) * 27); min-width: 132px; }
+#hud-weapon { display: flex; align-items: center; justify-content: space-between; gap: calc(var(--u) * 1); padding: calc(var(--u) * 0.9) calc(var(--u) * 1.3); }
+#hud-weapon svg { width: calc(var(--u) * 10); height: auto; flex: none; }
+#ammo { font-size: calc(var(--u) * 3); letter-spacing: 0.06em; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#ammo span { margin: 0 0.18em; color: var(--ink-dim); }
+#ammo[data-state="low"] #mag { color: var(--caution); }
+#ammo[data-state="empty"] #mag { color: var(--danger); animation: blink 0.5s steps(1) infinite; }
+#ammo[data-state="reload"] #mag { color: var(--ink-dim); }
+@keyframes blink { 50% { opacity: 0.25; } }
+#hud-slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: calc(var(--u) * 1); }
+.slot { position: relative; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; }
+.slot svg { width: 62%; height: 62%; }
+.slot b { position: absolute; right: calc(var(--u) * 0.6); bottom: calc(var(--u) * 0.2); font-size: calc(var(--u) * 2); font-weight: 400; }
+.slot kbd { position: absolute; left: calc(var(--u) * 0.5); top: calc(var(--u) * 0.3); font-family: var(--font-hud); font-size: calc(var(--u) * 1.2); color: var(--ink-dim); }
+.slot[data-empty="1"] svg { opacity: 0.28; }
+.slot[data-empty="1"] b { color: var(--ink-dim); }
+
+#prompt, #message { position: absolute; left: 50%; transform: translateX(-50%); font-family: var(--font-body); text-align: center; opacity: 0; transition: opacity 0.18s; max-width: min(80vw, 640px); }
+#prompt:empty, #message:empty { display: none; }
+#prompt { bottom: 27%; font-size: calc(var(--u) * 1.9); font-weight: 600; padding: 0.35em 0.9em; background: var(--panel); border: 1px solid var(--line); text-shadow: none; white-space: nowrap; }
+#message { bottom: calc(var(--u) * 5); font-size: calc(var(--u) * 1.9); line-height: 1.45; padding: 0.6em 1.1em; background: var(--panel); border: 2px solid var(--line); box-shadow: 0 0 0 2px #000; text-shadow: none; }
+
+/* ---- Menu overlay --------------------------------------------------- */
+#overlay {
+  position: absolute; inset: 0; display: flex; align-items: stretch; justify-content: flex-start;
+  background: linear-gradient(90deg, rgba(6, 4, 10, 0.94) 0%, rgba(6, 4, 10, 0.86) 34%, rgba(6, 4, 10, 0.25) 70%, rgba(6, 4, 10, 0.05) 100%);
+  -webkit-user-select: text; user-select: text;
+}
+#overlay[data-state="dead"] { background: linear-gradient(90deg, rgba(40, 4, 4, 0.94) 0%, rgba(30, 4, 4, 0.8) 40%, rgba(20, 2, 2, 0.35) 100%); }
+#card {
+  box-sizing: border-box; width: min(560px, 100%); padding-block: clamp(20px, 5vh, 56px); padding-inline: clamp(16px, 4vw, 48px);
+  overflow-y: auto; display: flex; flex-direction: column; gap: 22px;
+}
+.eyebrow { font-family: var(--font-thai); font-size: 17px; color: var(--lantern); letter-spacing: 0.04em; margin: 0; }
+.eyebrow span { font-family: var(--font-body); font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-dim); margin-left: 0.8em; }
+h1 { font-family: var(--font-hud); font-weight: 700; font-size: clamp(48px, 13vw, 92px); line-height: 0.9; letter-spacing: 0.06em; margin: 0; text-wrap: balance; text-shadow: 4px 4px 0 #000; }
+h1.small { font-size: clamp(30px, 8vw, 48px); line-height: 1.05; }
+.lede { margin: 0; line-height: 1.6; max-width: 46ch; color: var(--ink); }
+.note { margin: 0; line-height: 1.5; max-width: 52ch; color: var(--ink-dim); font-size: 12.5px; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; }
+button.btn {
+  font-family: var(--font-hud); font-size: 18px; letter-spacing: 0.1em; color: #0a0810; background: var(--ink);
+  border: 2px solid var(--ink); box-shadow: 0 0 0 2px #000, 4px 4px 0 2px #000; padding: 11px 22px; cursor: pointer; border-radius: 0;
+}
+button.btn.ghost { background: transparent; color: var(--ink); }
+button.btn:hover { background: var(--lantern); border-color: var(--lantern); color: #0a0810; }
+button.btn:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--lantern); outline-offset: 3px; }
+button.btn:disabled { opacity: 0.45; cursor: default; }
+h2 { font-family: var(--font-hud); font-weight: 400; font-size: 13px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-dim); margin: 0 0 10px; border-bottom: 1px solid rgba(207, 202, 187, 0.3); padding-bottom: 6px; }
+dl.keys { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; margin: 0; font-size: 13px; }
+dl.keys dt { font-family: var(--font-hud); font-size: 12px; color: var(--ink); white-space: nowrap; }
+dl.keys dd { margin: 0; color: var(--ink-dim); min-width: 0; }
+.settings { display: grid; grid-template-columns: max-content 1fr; gap: 10px 18px; align-items: center; font-size: 13px; }
+.settings label { color: var(--ink-dim); }
+.settings select, .settings input[type="range"] { font: inherit; max-width: 220px; width: 100%; }
+.settings select { background: #14121a; color: var(--ink); border: 1px solid var(--line); padding: 4px 6px; border-radius: 0; }
+.settings input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--lantern); }
+.settings input[type="range"] { accent-color: var(--lantern); }
+table.stats { border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+table.stats th { text-align: left; font-weight: 400; color: var(--ink-dim); padding: 4px 28px 4px 0; }
+table.stats td { text-align: right; font-family: var(--font-hud); padding: 4px 0; }
+@media (max-width: 520px) {
+  #overlay { background: rgba(6, 4, 10, 0.9); }
+  #hud-status .name { font-size: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #grain { animation: none; }
+  #ammo[data-state="empty"] #mag { animation: none; }
+}
+</style>
+
+<!--HEAD-END-->
+</head>
+<body>
+<!--BODY-START-->
+<div id="game">
+  <canvas id="view" tabindex="0" aria-label="Game view"></canvas>
+  <div id="scan"></div>
+  <div id="grain"></div>
+  <div id="vignette"></div>
+  <div id="hurt"></div>
+
+  <div id="hud" hidden>
+    <div id="hud-status">
+      <div class="name">LUCIA</div>
+      <div class="bar health" id="hp-bar" data-tone="fine"><i id="hp"></i></div>
+      <div class="bar stamina" id="st-bar"><i id="st"></i></div>
+      <div id="objective"></div>
+    </div>
+
+    <canvas id="minimap" class="hud-box" width="168" height="168"></canvas>
+
+    <div id="reticle"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="dot"></i></div>
+
+    <div id="hud-right">
+      <div id="hud-weapon" class="hud-box">
+        <svg viewBox="0 0 32 21" shape-rendering="crispEdges" aria-hidden="true">
+          <rect x="2" y="3" width="25" height="5" fill="#cfcabb"/>
+          <rect x="27" y="4" width="3" height="3" fill="#8f8b80"/>
+          <rect x="3" y="2" width="2" height="1" fill="#8f8b80"/>
+          <rect x="24" y="2" width="2" height="1" fill="#8f8b80"/>
+          <rect x="8" y="4" width="10" height="1" fill="#8f8b80"/>
+          <rect x="4" y="8" width="19" height="3" fill="#a8a498"/>
+          <rect x="12" y="11" width="1" height="4" fill="#a8a498"/>
+          <rect x="12" y="14" width="6" height="1" fill="#a8a498"/>
+          <rect x="18" y="11" width="1" height="4" fill="#a8a498"/>
+          <rect x="15" y="11" width="1" height="2" fill="#cfcabb"/>
+          <polygon points="4,11 12,11 10,20 2,20" fill="#6f6b62"/>
+          <polygon points="5,12 10,12 9,19 4,19" fill="#57534c"/>
+        </svg>
+        <div id="ammo" data-state="ok"><b id="mag">12</b><span>/</span><b id="res">12</b></div>
+      </div>
+      <div id="hud-slots">
+        <div class="slot hud-box" id="slotbox-spray" data-empty="1">
+          <kbd>1</kbd>
+          <svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+            <rect x="6" y="1" width="4" height="2" fill="#8f8b80"/>
+            <rect x="3" y="3" width="10" height="11" fill="#e4e0d4"/>
+            <rect x="3" y="12" width="10" height="2" fill="#b8b4a8"/>
+            <rect x="7" y="5" width="2" height="6" fill="#c8382c"/>
+            <rect x="5" y="7" width="6" height="2" fill="#c8382c"/>
+          </svg>
+          <b id="slot-spray">0</b>
+        </div>
+        <div class="slot hud-box" id="slotbox-herb" data-empty="1">
+          <kbd>2</kbd>
+          <svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+            <rect x="7" y="2" width="2" height="12" fill="#3f8a3c"/>
+            <rect x="4" y="4" width="3" height="2" fill="#57b04a"/>
+            <rect x="9" y="5" width="3" height="2" fill="#57b04a"/>
+            <rect x="3" y="8" width="4" height="2" fill="#3f8a3c"/>
+            <rect x="9" y="9" width="4" height="2" fill="#3f8a3c"/>
+            <rect x="5" y="12" width="2" height="2" fill="#57b04a"/>
+            <rect x="9" y="12" width="2" height="2" fill="#57b04a"/>
+            <rect x="6" y="1" width="1" height="2" fill="#57b04a"/>
+            <rect x="9" y="1" width="1" height="2" fill="#57b04a"/>
+          </svg>
+          <b id="slot-herb">0</b>
+        </div>
+        <div class="slot hud-box" id="slotbox-key" data-empty="1">
+          <svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+            <rect x="2" y="5" width="6" height="6" fill="#c8a84a"/>
+            <rect x="4" y="7" width="2" height="2" fill="#0a0810"/>
+            <rect x="8" y="7" width="6" height="2" fill="#c8a84a"/>
+            <rect x="11" y="9" width="1" height="2" fill="#c8a84a"/>
+            <rect x="13" y="9" width="1" height="3" fill="#c8a84a"/>
+          </svg>
+          <b id="slot-key">0</b>
+        </div>
+      </div>
+    </div>
+
+    <div id="prompt"></div>
+    <div id="message"></div>
+  </div>
+
+  <div id="overlay" data-state="loading">
+    <div id="card">
+      <p class="eyebrow">เชียงใหม่ พ.ศ. ๒๕๓๙ <span>Chiang Mai, 1996</span></p>
+      <h1 id="ov-title">LUCIA</h1>
+      <p class="lede" id="ov-lede">Building the lane…</p>
+
+      <table class="stats" id="ov-stats" hidden>
+        <tbody>
+          <tr><th>Time</th><td id="s-time">0:00</td></tr>
+          <tr><th>Infected put down</th><td id="s-kills">0 / 5</td></tr>
+          <tr><th>Shots fired</th><td id="s-shots">0</td></tr>
+          <tr><th>Hits</th><td id="s-hits">0</td></tr>
+          <tr><th>Headshots</th><td id="s-heads">0</td></tr>
+          <tr><th>Accuracy</th><td id="s-acc">0%</td></tr>
+          <tr><th>Rounds left</th><td id="s-ammo">0</td></tr>
+          <tr><th>Damage taken</th><td id="s-dmg">0</td></tr>
+        </tbody>
+      </table>
+
+      <div class="actions">
+        <button class="btn" id="btn-primary" type="button" disabled>Start</button>
+        <button class="btn ghost" id="btn-restart" type="button" hidden>Restart</button>
+      </div>
+      <p class="note" id="ov-note">Needs a keyboard and mouse. Click Start to capture the pointer; Esc releases it and pauses.</p>
+
+      <section id="ov-controls">
+        <h2>Controls</h2>
+        <dl class="keys">
+          <dt>W A S D</dt><dd>Move. Lucia jogs by default.</dd>
+          <dt>Mouse</dt><dd>Look</dd>
+          <dt>Shift</dt><dd>Sprint (uses stamina, unsteadies your aim afterwards)</dd>
+          <dt>X</dt><dd>Toggle walk. Walking is nearly silent.</dd>
+          <dt>Right mouse</dt><dd>Aim over the shoulder; move to strafe</dd>
+          <dt>Left mouse</dt><dd>Fire</dd>
+          <dt>Shift + aim</dt><dd>Hold breath to steady the reticle</dd>
+          <dt>R</dt><dd>Reload</dd>
+          <dt>E</dt><dd>Take or use what the prompt names</dd>
+          <dt>1 / 2</dt><dd>First aid spray / green herb</dd>
+          <dt>M</dt><dd>Mute</dd>
+          <dt>Esc / P</dt><dd>Pause</dd>
+        </dl>
+      </section>
+
+      <section id="ov-settings">
+        <h2>Display</h2>
+        <div class="settings">
+          <label for="set-res">Render height</label>
+          <select id="set-res">
+            <option value="360">360 lines, chunky</option>
+            <option value="480" selected>480 lines, PS2</option>
+            <option value="720">720 lines, early PS3</option>
+            <option value="0">Native, no dither</option>
+          </select>
+          <label for="set-shadows">Character shadows</label>
+          <input type="checkbox" id="set-shadows" checked>
+          <label for="set-grain">Film grain and scanlines</label>
+          <input type="checkbox" id="set-grain" checked>
+          <label for="set-sens">Mouse sensitivity</label>
+          <input type="range" id="set-sens" min="0.4" max="2.2" step="0.05" value="1">
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+<!--BODY-END-->
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
